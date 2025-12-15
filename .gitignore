@@ -192,8 +192,22 @@ pyrightconfig.json
 # Ignore all local history of files
 .history
 .ionide
+<<<<<<< HEAD
 
 # End of https://www.toptal.com/developers/gitignore/api/python,visualstudiocode
 =======
 __pycache__/
 >>>>>>> f322d45 (Ignore Python cache files)
+=======
+*.jpg
+*.jpeg
+*.png
+*.wav
+*.mp3
+*.ogg
+*.midi
+*.zip
+*.7z
+*.rar
+# End of https://www.toptal.com/developers/gitignore/api/python,visualstudiocode
+>>>>>>> 87801258e68454fb1045f0b144c3d2ceb7fe82e8
