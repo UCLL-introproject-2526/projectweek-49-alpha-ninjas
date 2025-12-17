@@ -52,6 +52,11 @@ class DifficultyManager:
         self.base_spawn_rate = 50
         self.base_fruit_speed = (3, 6)
 
+        # ✅ Bomb difficulty tuning
+        self.base_bomb_interval = 180   # frames (roughly)
+        self.min_bomb_interval = 60
+        self.base_bomb_speed = (3.0, 5.0)
+
     def update(self, score):
         new_level = score // self.score_threshold + 1
         if new_level > self.level:
@@ -67,6 +72,33 @@ class DifficultyManager:
         max_speed = self.base_fruit_speed[1] + self.level * 0.5
         return (min_speed, max_speed)
 
+    # ✅ Bombs fall faster as level increases
+    def get_bomb_speed(self):
+        min_speed = self.base_bomb_speed[0] + self.level * 0.35
+        max_speed = self.base_bomb_speed[1] + self.level * 0.35
+        return (min_speed, max_speed)
+
+    # ✅ Bombs spawn more frequently as level increases
+    def get_bomb_interval(self):
+        interval = self.base_bomb_interval - self.level * 10
+        return max(self.min_bomb_interval, interval)
+
+    # ✅ Sometimes spawn multiple bombs (burst) as level increases
+    def get_bomb_burst_count(self):
+        # level 1-3: mostly 1
+        # level 4-6: sometimes 2
+        # level 7+: sometimes 3
+        roll = random.random()
+        if self.level >= 7:
+            if roll < 0.20:
+                return 3
+            if roll < 0.55:
+                return 2
+            return 1
+        if self.level >= 4:
+            return 2 if roll < 0.35 else 1
+        return 1
+
 
 FRUIT_TYPES = {
     "watermelon": {"color": (34, 139, 34), "inner": (255, 69, 96), "stripe": (25, 100, 25), "size": 60, "points": 15},
@@ -79,11 +111,12 @@ FRUIT_TYPES = {
 
 
 class Bomb:
-    def __init__(self):
+    # ✅ Bomb takes speed_range so difficulty can control fall speed
+    def __init__(self, speed_range=(3.0, 5.0)):
         self.x = random.randint(50, WIDTH - 50)
         self.y = -40
         self.size = 40
-        self.speed = random.uniform(3, 5)
+        self.speed = random.uniform(speed_range[0], speed_range[1])
         self.rotation = 0
         self.rotation_speed = random.uniform(-5, 5)
         self.sliced = False
@@ -406,7 +439,6 @@ class GameScreen:
         self.small_font = pygame.font.SysFont("arial", 20, bold=True)
         self.tiny_font = pygame.font.SysFont("arial", 16)
 
-        # sounds (safe if mixer missing)
         self.splash_sound = None
         self.bomb_sound = None
         self.powerup_sound = None
@@ -421,7 +453,7 @@ class GameScreen:
             pass
 
         self.best_score = 0
-        self.max_bomb_hits = 3  # ✅ game over after 3 bomb hits
+        self.max_bomb_hits = 3
         self.enter()
 
     def enter(self):
@@ -442,7 +474,6 @@ class GameScreen:
         self.combo = 0
         self.max_combo = 0
 
-        # ✅ New rule: game ends only on bomb hits
         self.bomb_hits = 0
 
         self.game_time_ms = 0
@@ -467,7 +498,6 @@ class GameScreen:
         if self.paused:
             return None
 
-        # ✅ Game Over only by bombs
         if self.bomb_hits >= self.max_bomb_hits:
             self.best_score = max(self.best_score, self.score)
             return ("game_over", self.score, self.best_score)
@@ -493,14 +523,24 @@ class GameScreen:
             self.bomb_spawn_timer += 1
             self.powerup_spawn_timer += 1
 
+        # fruits
         if self.spawn_timer > spawn_rate:
             self.fruits.append(Fruit(self.difficulty.get_fruit_speed(), self.small_font))
             self.spawn_timer = 0
 
-        if self.bomb_spawn_timer > 180:
-            self.bombs.append(Bomb())
-            self.bomb_spawn_timer = random.randint(-30, 0)
+        # ✅ bombs: faster interval + burst count + faster fall speed with level
+        bomb_interval = self.difficulty.get_bomb_interval()
+        if self.bomb_spawn_timer > bomb_interval:
+            burst = self.difficulty.get_bomb_burst_count()
+            bomb_speed_range = self.difficulty.get_bomb_speed()
 
+            for _ in range(burst):
+                self.bombs.append(Bomb(bomb_speed_range))
+
+            # small randomness so it doesn't feel robotic
+            self.bomb_spawn_timer = random.randint(-15, 0)
+
+        # powerups
         if self.powerup_spawn_timer > 400:
             self.powerups.append(PowerUp(self.tiny_font))
             self.powerup_spawn_timer = 0
@@ -540,10 +580,9 @@ class GameScreen:
                     self.particles.append(Particle(fruit.x, fruit.y, fruit.info["inner"], "splash"))
 
             elif fruit.y > self.height + 50:
-                # ✅ No life loss for missed fruit
                 if fruit in self.fruits:
                     self.fruits.remove(fruit)
-                    self.combo = 0  # optional: punish miss by resetting combo
+                    self.combo = 0
 
         # bombs
         for bomb in self.bombs[:]:
@@ -554,7 +593,6 @@ class GameScreen:
                 bomb.sliced = True
                 self.bombs.remove(bomb)
 
-                # ✅ bomb hit counter
                 self.bomb_hits += 1
                 self.combo = 0
                 self.stats["bombs_hit"] += 1
@@ -639,7 +677,6 @@ class GameScreen:
         level_text = self.small_font.render(f"Level: {self.difficulty.level}", True, WHITE)
         surface.blit(level_text, (20, 60))
 
-        # ✅ Replace hearts with bomb hit HUD
         bomb_text = self.small_font.render(f"Bomb hits: {self.bomb_hits}/{self.max_bomb_hits}", True, (255, 200, 200))
         surface.blit(bomb_text, (self.width - 220, 20))
 
