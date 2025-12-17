@@ -1,51 +1,75 @@
 import pygame
+from settings import WIDTH, HEIGHT, FPS
+
 from screens.loading import LoadingScreen
+from screens.menu import MenuScreen
+from screens.gameplay import GameScreen
+from screens.game_over import GameOverScreen
 
-class State:
-    def __init__(self):
-        self.x = 0
 
-    def update(self):
-        self.x += 1
-
-    def render(self, surface):
-        pygame.draw.circle(surface, (255, 0, 0), (self.x, 300), 50)
-
-def create_main_surface():
-    surface = pygame.display.set_mode((800, 600))
-    pygame.display.set_caption("Alpha Ninja")
-    return surface
-
-def render_frame(surface, state):
-    surface.fill((0, 0, 0))
-    state.render(surface)
-    pygame.display.flip()
-
-def MAIN():
+def main():
     pygame.init()
-    surface = create_main_surface()
+    try:
+        pygame.mixer.init()
+    except pygame.error:
+        pass
 
-    # ✅ LOADING SCREEN (NO IMAGES)
-    loading = LoadingScreen(surface)
-    while not loading.done:
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                pygame.quit()
-                exit()
+    surface = pygame.display.set_mode((WIDTH, HEIGHT))
+    pygame.display.set_caption("Alpha Ninja")
+    clock = pygame.time.Clock()
+
+    loading = LoadingScreen(WIDTH, HEIGHT)
+    menu = MenuScreen(WIDTH, HEIGHT)
+    gameplay = GameScreen(WIDTH, HEIGHT)
+    gameover = GameOverScreen(WIDTH, HEIGHT)
+
+    current = loading
+    current.enter()
+
+    running = True
+    while running:
+        dt = clock.tick(FPS) / 1000.0  # seconds
+
+        events = pygame.event.get()
+
+        # 1) handle events
+        action = None
+        for event in events:
+            a = current.handle_event(event)
+            if a is not None:
+                action = a
+
+        # 2) update (if no action yet)
+        if action is None:
+            action = current.update(dt)
+
+        # 3) transitions
+        if action == "quit":
+            running = False
+
+        elif action == "menu":
+            current = menu
+            current.enter()
+
+        elif action == "start":
+            gameplay.enter()
+            current = gameplay
+
+        elif action == "retry":
+            gameplay.enter()
+            current = gameplay
+
+        elif isinstance(action, tuple) and action[0] == "game_over":
+            _, final_score, best_score = action
+            gameover.enter(final_score, best_score)
+            current = gameover
+
+        # 4) draw
+        current.draw(surface)
+        pygame.display.flip()
+
+    pygame.quit()
 
 
-
-        loading.update()
-        loading.render()
-
-    # ✅ GAME STARTS
-
-    while True:
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                pygame.quit()
-                exit()
-
-        render_frame(surface)
-
-MAIN()
+if __name__ == "__main__":
+    main()
