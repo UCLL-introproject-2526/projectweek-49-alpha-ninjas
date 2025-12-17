@@ -1,6 +1,6 @@
 # settings.py
-WIDTH = 800
-HEIGHT = 600
+WIDTH = 1200
+HEIGHT = 750
 FPS = 60
 
 COLORS = {
