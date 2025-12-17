@@ -18,6 +18,16 @@ class LoadingScreen:
         self.font = pygame.font.SysFont("arial", 48, bold=True)
         self.start_ms = 0
 
+
+        
+        # LOAD BACKGROUND ONCE
+        self.background = pygame.image.load(
+            "assets/images/1.png"
+        ).convert()
+        self.background = pygame.transform.smoothscale(
+            self.background, (self.width, self.height)
+        )
+
     def enter(self):
         self.angle = -60
         self.show_title = False
@@ -41,21 +51,29 @@ class LoadingScreen:
         return None
 
     def draw(self, surface):
-        surface.fill(self.bg_color)
+        surface.blit(self.background, (0, 0))
 
-        ninja_x, ninja_y = self.width // 2, self.height // 2
-        pygame.draw.circle(surface, self.ninja_color, (ninja_x, ninja_y), 60)
 
-        if self.angle > -20:
-            pygame.draw.line(
-                surface,
-                self.red,
-                (ninja_x - 80, ninja_y - 40),
-                (ninja_x + 80, ninja_y + 40),
-                4,
-            )
 
-        if self.show_title:
-            text = self.font.render("ALPHA NINJA", True, self.text_color)
-            rect = text.get_rect(center=(self.width // 2, self.height - 100))
-            surface.blit(text, rect)
+
+
+
+
+        # surface.fill(self.bg_color)
+
+        # ninja_x, ninja_y = self.width // 2, self.height // 2
+        # pygame.draw.circle(surface, self.ninja_color, (ninja_x, ninja_y), 60)
+
+        # if self.angle > -20:
+        #     pygame.draw.line(
+        #         surface,
+        #         self.red,
+        #         (ninja_x - 80, ninja_y - 40),
+        #         (ninja_x + 80, ninja_y + 40),
+        #         4,
+        #     )
+
+        # if self.show_title:
+        #     text = self.font.render("ALPHA NINJA", True, self.text_color)
+        #     rect = text.get_rect(center=(self.width // 2, self.height - 100))
+        #     surface.blit(text, rect)

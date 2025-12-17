@@ -1,6 +1,9 @@
 import pygame
 from settings import WIDTH, HEIGHT, COLORS
 
+pygame.init()
+screen = pygame.display.set_mode((WIDTH, HEIGHT))
+
 
 class MenuScreen:
     def __init__(self, width=WIDTH, height=HEIGHT):
@@ -13,6 +16,14 @@ class MenuScreen:
         self.bg = (12, 12, 18)
         self.accent = COLORS["light"]
         self.text = COLORS["text"]
+
+        # LOAD BACKGROUND ONCE
+        self.background = pygame.image.load(
+            "assets/images/loading_screen.png"
+        ).convert()
+        self.background = pygame.transform.smoothscale(
+            self.background, (self.width, self.height)
+        )
 
     def enter(self):
         pass
@@ -31,20 +42,4 @@ class MenuScreen:
         return None
 
     def draw(self, surface):
-        surface.fill(self.bg)
-
-        title = self.title_font.render("ALPHA NINJA", True, self.accent)
-        surface.blit(title, title.get_rect(center=(self.width // 2, 170)))
-
-        lines = [
-            "Press ENTER / SPACE to Start",
-            "Arrow Keys: Move",
-            "SPACE + Arrow: Dash",
-            "P: Pause",
-            "Q / ESC: Quit",
-        ]
-        y = 290
-        for line in lines:
-            t = self.font.render(line, True, self.text)
-            surface.blit(t, t.get_rect(center=(self.width // 2, y)))
-            y += 42
+        surface.blit(self.background, (0, 0))
