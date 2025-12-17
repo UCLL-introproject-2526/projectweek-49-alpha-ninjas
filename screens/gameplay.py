@@ -2,6 +2,7 @@ import pygame
 import random
 import math
 import array
+import os
 from settings import WIDTH, HEIGHT
 
 
@@ -76,6 +77,25 @@ FRUIT_TYPES = {
     "orange": {"color": (255, 165, 0), "inner": (255, 200, 100), "size": 48, "points": 9},
     "strawberry": {"color": (255, 50, 80), "inner": (255, 150, 150), "size": 40, "points": 7},
 }
+
+# ------------------ FRUIT IMAGES ------------------
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ASSET_DIR = os.path.join(BASE_DIR, "assets", "images")
+
+
+FRUIT_IMAGES = {}
+
+def load_fruit_images():
+    for fruit, info in FRUIT_TYPES.items():
+        path = os.path.join(ASSET_DIR, f"{fruit}.png")
+        if os.path.exists(path):
+            image = pygame.image.load(path).convert_alpha()
+            size = info["size"]
+            FRUIT_IMAGES[fruit] = pygame.transform.smoothscale(
+                image, (size, size)
+            )
+        else:
+            FRUIT_IMAGES[fruit] = None
 
 
 class Bomb:
@@ -233,12 +253,20 @@ class Fruit:
         self.type = random.choice(list(FRUIT_TYPES.keys()))
         self.info = FRUIT_TYPES[self.type]
         self.size = self.info["size"]
+        # Load and scale the image
+        self.image = pygame.image.load(os.path.join(ASSET_DIR, f"{self.type}.png")).convert_alpha()
+        self.image = pygame.transform.scale(self.image, (self.size, self.size))
+
+        self.size = self.info["size"]
         self.points = self.info["points"]
+
         self.x = random.randint(self.size, WIDTH - self.size)
         self.y = -self.size
         self.speed = random.uniform(speed_range[0], speed_range[1])
+
         self.rotation = random.uniform(0, 360)
         self.rotation_speed = random.uniform(-3, 3)
+
         self.sliced = False
         self.is_critical = random.random() < 0.1
         self.small_font = small_font
@@ -250,49 +278,47 @@ class Fruit:
     def draw(self, surface):
         offset = abs(math.sin(math.radians(self.rotation))) * 3
 
+        # glow for critical fruit
         if self.is_critical:
             for i in range(3):
                 glow_size = self.size + 10 + i * 5
-                pygame.draw.circle(surface, GOLD, (int(self.x), int(self.y + offset)), glow_size // 2, 1)
+                pygame.draw.circle(
+                    surface, GOLD,
+                    (int(self.x), int(self.y + offset)),
+                    glow_size // 2, 1
+                )
 
-        if self.type == "watermelon":
-            pygame.draw.circle(surface, self.info["color"], (int(self.x), int(self.y + offset)), self.size // 2)
-            for i in range(-3, 4):
-                stripe_x = int(self.x + i * 8)
-                pygame.draw.line(surface, self.info["stripe"], (stripe_x, int(self.y - self.size // 2 + offset)), (stripe_x, int(self.y + self.size // 2 + offset)), 3)
-        elif self.type == "mango":
-            pygame.draw.ellipse(surface, self.info["color"], (int(self.x - self.size // 2), int(self.y - self.size // 2.5 + offset), self.size, int(self.size * 1.2)))
-        elif self.type == "banana":
-            points = []
-            for i in range(7):
-                curve_x = int(self.x + (i - 3) * 10)
-                curve_y = int(self.y + offset)
-                points.append((curve_x, curve_y - 15))
-            for i in range(6, -1, -1):
-                curve_x = int(self.x + (i - 3) * 10)
-                curve_y = int(self.y + offset)
-                points.append((curve_x, curve_y + 15))
-            pygame.draw.polygon(surface, self.info["color"], points)
-        elif self.type == "apple":
-            pygame.draw.circle(surface, self.info["color"], (int(self.x), int(self.y + offset)), self.size // 2)
-        elif self.type == "orange":
-            pygame.draw.circle(surface, self.info["color"], (int(self.x), int(self.y + offset)), self.size // 2)
-        elif self.type == "strawberry":
-            points = [
-                (self.x, self.y - self.size // 2 + offset),
-                (self.x - self.size // 2, self.y + self.size // 3 + offset),
-                (self.x, self.y + self.size // 2 + offset),
-                (self.x + self.size // 2, self.y + self.size // 3 + offset),
-            ]
-            pygame.draw.polygon(surface, self.info["color"], points)
+        if self.image:
+            rotated = pygame.transform.rotate(self.image, self.rotation)
+            rect = rotated.get_rect(center=(int(self.x), int(self.y + offset)))
+            surface.blit(rotated, rect)
+        else:
+            # fallback if image missing
+            pygame.draw.circle(
+                surface,
+                self.info["color"],
+                (int(self.x), int(self.y + offset)),
+                self.size // 2
+            )
 
         points_value = self.points * 2 if self.is_critical else self.points
         label_color = GOLD if self.is_critical else WHITE
         points_text = self.small_font.render(f"+{points_value}", True, label_color)
-        surface.blit(points_text, points_text.get_rect(center=(int(self.x), int(self.y + self.size // 2 + 15))))
+        surface.blit(
+            points_text,
+            points_text.get_rect(
+                center=(int(self.x), int(self.y + self.size // 2 + 15))
+            )
+        )
 
     def get_rect(self):
-        return pygame.Rect(self.x - self.size // 2, self.y - self.size // 2, self.size, self.size)
+        return pygame.Rect(
+            self.x - self.size // 2,
+            self.y - self.size // 2,
+            self.size,
+            self.size
+        )
+
 
 
 class Ninja:
@@ -428,7 +454,11 @@ class GameScreen:
             pass
 
         self.best_score = 0
-        self.enter()
+
+        load_fruit_images()   #  LOAD FIRST
+        self.enter()          #  THEN CREATE FRUITS
+
+
 
     def enter(self):
         self.fruits = []
