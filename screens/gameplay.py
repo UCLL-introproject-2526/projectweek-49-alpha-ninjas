@@ -379,13 +379,6 @@ class Ninja:
         return pygame.Rect(center_x - 60, center_y - 60, 120, 120)
 
 
-def draw_heart(surface, x, y, filled=True):
-    color = RED if filled else (80, 80, 80)
-    pygame.draw.circle(surface, color, (x - 6, y), 8)
-    pygame.draw.circle(surface, color, (x + 6, y), 8)
-    pygame.draw.polygon(surface, color, [(x - 12, y + 2), (x + 12, y + 2), (x, y + 16)])
-
-
 class FloatingText:
     def __init__(self, x, y, text, color, font):
         self.x = x
@@ -428,6 +421,7 @@ class GameScreen:
             pass
 
         self.best_score = 0
+        self.max_bomb_hits = 3  # ✅ game over after 3 bomb hits
         self.enter()
 
     def enter(self):
@@ -447,7 +441,9 @@ class GameScreen:
         self.score = 0
         self.combo = 0
         self.max_combo = 0
-        self.lives = 3
+
+        # ✅ New rule: game ends only on bomb hits
+        self.bomb_hits = 0
 
         self.game_time_ms = 0
         self.paused = False
@@ -471,7 +467,8 @@ class GameScreen:
         if self.paused:
             return None
 
-        if self.lives <= 0:
+        # ✅ Game Over only by bombs
+        if self.bomb_hits >= self.max_bomb_hits:
             self.best_score = max(self.best_score, self.score)
             return ("game_over", self.score, self.best_score)
 
@@ -483,7 +480,9 @@ class GameScreen:
                 self.active_powerups[k] -= 1
 
         if self.difficulty.update(self.score):
-            self.floating_texts.append(FloatingText(self.width // 2 - 100, self.height // 2, f"LEVEL {self.difficulty.level}!", GOLD, self.font))
+            self.floating_texts.append(
+                FloatingText(self.width // 2 - 100, self.height // 2, f"LEVEL {self.difficulty.level}!", GOLD, self.font)
+            )
 
         spawn_rate = self.difficulty.get_spawn_rate()
         if self.active_powerups["frenzy"] > 0:
@@ -541,10 +540,10 @@ class GameScreen:
                     self.particles.append(Particle(fruit.x, fruit.y, fruit.info["inner"], "splash"))
 
             elif fruit.y > self.height + 50:
+                # ✅ No life loss for missed fruit
                 if fruit in self.fruits:
                     self.fruits.remove(fruit)
-                    self.lives -= 1
-                    self.combo = 0
+                    self.combo = 0  # optional: punish miss by resetting combo
 
         # bombs
         for bomb in self.bombs[:]:
@@ -554,7 +553,9 @@ class GameScreen:
             if not bomb.sliced and bomb.get_rect().colliderect(slash_area):
                 bomb.sliced = True
                 self.bombs.remove(bomb)
-                self.lives -= 1
+
+                # ✅ bomb hit counter
+                self.bomb_hits += 1
                 self.combo = 0
                 self.stats["bombs_hit"] += 1
 
@@ -565,7 +566,9 @@ class GameScreen:
                     self.particles.append(Particle(bomb.x, bomb.y, (255, 100, 0), "explosion"))
                     self.particles.append(Particle(bomb.x, bomb.y, (255, 200, 0), "explosion"))
 
-                self.floating_texts.append(FloatingText(bomb.x - 40, bomb.y, "-1 LIFE", RED, self.font))
+                self.floating_texts.append(
+                    FloatingText(bomb.x - 80, bomb.y, f"BOMB {self.bomb_hits}/{self.max_bomb_hits}", RED, self.font)
+                )
 
             elif bomb.y > self.height + 50:
                 if bomb in self.bombs:
@@ -636,8 +639,9 @@ class GameScreen:
         level_text = self.small_font.render(f"Level: {self.difficulty.level}", True, WHITE)
         surface.blit(level_text, (20, 60))
 
-        for i in range(3):
-            draw_heart(surface, self.width - 120 + i * 30, 35, i < self.lives)
+        # ✅ Replace hearts with bomb hit HUD
+        bomb_text = self.small_font.render(f"Bomb hits: {self.bomb_hits}/{self.max_bomb_hits}", True, (255, 200, 200))
+        surface.blit(bomb_text, (self.width - 220, 20))
 
         y0 = 90
         if self.active_powerups["freeze"] > 0:
