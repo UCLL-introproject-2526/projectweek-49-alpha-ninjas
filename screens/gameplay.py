@@ -1,37 +1,14 @@
 import pygame
 import random
 import math
-import array
 from settings import WIDTH, HEIGHT
 
 
-# ------------------ SOUND EFFECTS ------------------
-def create_sound(frequency, duration, sound_type="splash"):
-    sample_rate = 22050
-    samples = int(sample_rate * duration)
-    buf = array.array("h")  # stereo 16-bit: L,R,L,R...
-
-    for i in range(samples):
-        amplitude = 32767 * (1 - i / samples) * 0.3
-
-        if sound_type == "splash":
-            value = amplitude * (
-                math.sin(2 * math.pi * frequency * i / sample_rate)
-                + 0.5 * math.sin(2 * math.pi * frequency * 2 * i / sample_rate)
-            )
-        elif sound_type == "bomb":
-            value = amplitude * random.uniform(-1, 1) * 0.5
-        elif sound_type == "powerup":
-            freq = frequency + (i / samples) * 200
-            value = amplitude * math.sin(2 * math.pi * freq * i / sample_rate)
-        else:
-            value = amplitude * math.sin(2 * math.pi * frequency * i / sample_rate)
-
-        s = int(max(-32768, min(32767, value)))
-        buf.append(s)
-        buf.append(s)
-
-    return pygame.mixer.Sound(buffer=buf.tobytes())
+# ------------------ PATHS ------------------
+SND_BG_GAMEPLAY = "assets/sounds/backgroundmusic_gameplay.mp3"
+SND_GAME_START = "assets/sounds/game_start_sound.mp3"
+SND_GAME_OVER = "assets/sounds/game-over-arcade-6435.mp3"
+SND_SLICE = "assets/sounds/splicing_side.mp3"
 
 
 # ------------------ COLORS ------------------
@@ -52,8 +29,8 @@ class DifficultyManager:
         self.base_spawn_rate = 50
         self.base_fruit_speed = (3, 6)
 
-        # ✅ Bomb difficulty tuning
-        self.base_bomb_interval = 180   # frames (roughly)
+        # Bomb difficulty tuning
+        self.base_bomb_interval = 180
         self.min_bomb_interval = 60
         self.base_bomb_speed = (3.0, 5.0)
 
@@ -72,22 +49,19 @@ class DifficultyManager:
         max_speed = self.base_fruit_speed[1] + self.level * 0.5
         return (min_speed, max_speed)
 
-    # ✅ Bombs fall faster as level increases
+    # ✅ Bombs fall faster with level
     def get_bomb_speed(self):
         min_speed = self.base_bomb_speed[0] + self.level * 0.35
         max_speed = self.base_bomb_speed[1] + self.level * 0.35
         return (min_speed, max_speed)
 
-    # ✅ Bombs spawn more frequently as level increases
+    # ✅ Bombs spawn more often with level
     def get_bomb_interval(self):
         interval = self.base_bomb_interval - self.level * 10
         return max(self.min_bomb_interval, interval)
 
-    # ✅ Sometimes spawn multiple bombs (burst) as level increases
+    # ✅ Spawn multiple bombs sometimes (burst)
     def get_bomb_burst_count(self):
-        # level 1-3: mostly 1
-        # level 4-6: sometimes 2
-        # level 7+: sometimes 3
         roll = random.random()
         if self.level >= 7:
             if roll < 0.20:
@@ -111,7 +85,6 @@ FRUIT_TYPES = {
 
 
 class Bomb:
-    # ✅ Bomb takes speed_range so difficulty can control fall speed
     def __init__(self, speed_range=(3.0, 5.0)):
         self.x = random.randint(50, WIDTH - 50)
         self.y = -40
@@ -430,6 +403,54 @@ class FloatingText:
         surface.blit(self.font.render(self.text, True, self.color), (int(self.x), int(self.y)))
 
 
+# ------------------ SOUND MANAGER (simple) ------------------
+class SoundBank:
+    def __init__(self):
+        self.ok = False
+        self.slice = None
+        self.start = None
+        self.over = None
+        self.bg_loaded = False
+
+        try:
+            if pygame.mixer.get_init():
+                self.ok = True
+                self.slice = pygame.mixer.Sound(SND_SLICE)
+                self.start = pygame.mixer.Sound(SND_GAME_START)
+                self.over = pygame.mixer.Sound(SND_GAME_OVER)
+        except Exception:
+            # keep silent mode if anything fails
+            self.ok = False
+
+    def play_slice(self):
+        if self.ok and self.slice:
+            self.slice.play()
+
+    def play_start(self):
+        if self.ok and self.start:
+            self.start.play()
+
+    def play_game_over(self):
+        if self.ok and self.over:
+            self.over.play()
+
+    def start_bg(self, volume=0.35):
+        if not self.ok:
+            return
+        try:
+            pygame.mixer.music.load(SND_BG_GAMEPLAY)
+            pygame.mixer.music.set_volume(volume)
+            pygame.mixer.music.play(-1)  # loop forever
+            self.bg_loaded = True
+        except Exception:
+            self.bg_loaded = False
+
+    def stop_bg(self):
+        if self.ok and self.bg_loaded:
+            pygame.mixer.music.stop()
+            self.bg_loaded = False
+
+
 class GameScreen:
     def __init__(self, width=WIDTH, height=HEIGHT):
         self.width = width
@@ -439,24 +460,17 @@ class GameScreen:
         self.small_font = pygame.font.SysFont("arial", 20, bold=True)
         self.tiny_font = pygame.font.SysFont("arial", 16)
 
-        self.splash_sound = None
-        self.bomb_sound = None
-        self.powerup_sound = None
-        self.critical_sound = None
-        try:
-            if pygame.mixer.get_init():
-                self.splash_sound = create_sound(400, 0.15, "splash")
-                self.bomb_sound = create_sound(100, 0.3, "bomb")
-                self.powerup_sound = create_sound(600, 0.2, "powerup")
-                self.critical_sound = create_sound(800, 0.1, "powerup")
-        except Exception:
-            pass
+        self.sounds = SoundBank()
 
         self.best_score = 0
         self.max_bomb_hits = 3
         self.enter()
 
     def enter(self):
+        # sounds: start gameplay
+        self.sounds.play_start()
+        self.sounds.start_bg(volume=0.35)
+
         self.fruits = []
         self.bombs = []
         self.powerups = []
@@ -498,8 +512,14 @@ class GameScreen:
         if self.paused:
             return None
 
+        # ✅ Game over only by bombs
         if self.bomb_hits >= self.max_bomb_hits:
             self.best_score = max(self.best_score, self.score)
+
+            # stop bg + play game over
+            self.sounds.stop_bg()
+            self.sounds.play_game_over()
+
             return ("game_over", self.score, self.best_score)
 
         keys = pygame.key.get_pressed()
@@ -528,16 +548,24 @@ class GameScreen:
             self.fruits.append(Fruit(self.difficulty.get_fruit_speed(), self.small_font))
             self.spawn_timer = 0
 
-        # ✅ bombs: faster interval + burst count + faster fall speed with level
+        # bombs: interval + burst + speed with level
         bomb_interval = self.difficulty.get_bomb_interval()
         if self.bomb_spawn_timer > bomb_interval:
             burst = self.difficulty.get_bomb_burst_count()
             bomb_speed_range = self.difficulty.get_bomb_speed()
 
+            # optional: spread bombs in a burst so it's fairer
+            used_x = []
             for _ in range(burst):
-                self.bombs.append(Bomb(bomb_speed_range))
+                b = Bomb(bomb_speed_range)
+                # try to keep some horizontal separation
+                for _try in range(6):
+                    if all(abs(b.x - x) > 80 for x in used_x):
+                        break
+                    b.x = random.randint(50, WIDTH - 50)
+                used_x.append(b.x)
+                self.bombs.append(b)
 
-            # small randomness so it doesn't feel robotic
             self.bomb_spawn_timer = random.randint(-15, 0)
 
         # powerups
@@ -562,8 +590,6 @@ class GameScreen:
                 if fruit.is_critical:
                     points *= 2
                     self.stats["critical_hits"] += 1
-                    if self.critical_sound:
-                        self.critical_sound.play()
                     self.floating_texts.append(FloatingText(fruit.x - 50, fruit.y, "CRITICAL!", GOLD, self.font))
 
                 self.score += points
@@ -572,8 +598,7 @@ class GameScreen:
                 self.stats["fruits_sliced"] += 1
 
                 self.ninja.trigger_slash()
-                if self.splash_sound:
-                    self.splash_sound.play()
+                self.sounds.play_slice()
 
                 for _ in range(25):
                     self.particles.append(Particle(fruit.x, fruit.y, fruit.info["color"], "splash"))
@@ -597,15 +622,15 @@ class GameScreen:
                 self.combo = 0
                 self.stats["bombs_hit"] += 1
 
-                if self.bomb_sound:
-                    self.bomb_sound.play()
+                # (optional) also play slice sound on bomb hit
+                self.sounds.play_slice()
 
                 for _ in range(50):
                     self.particles.append(Particle(bomb.x, bomb.y, (255, 100, 0), "explosion"))
                     self.particles.append(Particle(bomb.x, bomb.y, (255, 200, 0), "explosion"))
 
                 self.floating_texts.append(
-                    FloatingText(bomb.x - 80, bomb.y, f"BOMB {self.bomb_hits}/{self.max_bomb_hits}", RED, self.font)
+                    FloatingText(bomb.x - 90, bomb.y, f"BOMB {self.bomb_hits}/{self.max_bomb_hits}", RED, self.font)
                 )
 
             elif bomb.y > self.height + 50:
@@ -623,8 +648,8 @@ class GameScreen:
                 self.active_powerups[p.type] = 300
                 self.stats["powerups_collected"] += 1
 
-                if self.powerup_sound:
-                    self.powerup_sound.play()
+                # slice sound works here too
+                self.sounds.play_slice()
 
                 msg = {"freeze": "TIME FREEZE!", "double_points": "DOUBLE POINTS!", "frenzy": "FRUIT FRENZY!"}[p.type]
                 self.floating_texts.append(FloatingText(p.x - 80, p.y, msg, p.get_color(), self.font))
