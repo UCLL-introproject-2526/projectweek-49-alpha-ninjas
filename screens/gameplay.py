@@ -412,14 +412,19 @@ class SoundBank:
         self.over = None
         self.bg_loaded = False
 
+        # ✅ keep channel reference
+        self._start_channel = None
+
         try:
             if pygame.mixer.get_init():
                 self.ok = True
                 self.slice = pygame.mixer.Sound(SND_SLICE)
+                self.slice.set_volume(0.35)   # 🔽 much lower
                 self.start = pygame.mixer.Sound(SND_GAME_START)
+                self.start.set_volume(0.6)
                 self.over = pygame.mixer.Sound(SND_GAME_OVER)
+                self.over.set_volume(0.7)
         except Exception:
-            # keep silent mode if anything fails
             self.ok = False
 
     def play_slice(self):
@@ -428,7 +433,14 @@ class SoundBank:
 
     def play_start(self):
         if self.ok and self.start:
-            self.start.play()
+            # ✅ play once (no loops), keep channel so we can stop it
+            self._start_channel = self.start.play(loops=0)
+
+    def stop_start(self):
+        # ✅ stops the start sound immediately (if still playing)
+        if self._start_channel:
+            self._start_channel.stop()
+            self._start_channel = None
 
     def play_game_over(self):
         if self.ok and self.over:
@@ -440,7 +452,7 @@ class SoundBank:
         try:
             pygame.mixer.music.load(SND_BG_GAMEPLAY)
             pygame.mixer.music.set_volume(volume)
-            pygame.mixer.music.play(-1)  # loop forever
+            pygame.mixer.music.play(-1)
             self.bg_loaded = True
         except Exception:
             self.bg_loaded = False
@@ -470,6 +482,8 @@ class GameScreen:
         # sounds: start gameplay
         self.sounds.play_start()
         self.sounds.start_bg(volume=0.35)
+        self._start_sound_cut_done = False
+
 
         self.fruits = []
         self.bombs = []
@@ -511,6 +525,9 @@ class GameScreen:
 
         if self.paused:
             return None
+        if not self._start_sound_cut_done:
+            self.sounds.stop_start()
+            self._start_sound_cut_done = True
 
         # ✅ Game over only by bombs
         if self.bomb_hits >= self.max_bomb_hits:
