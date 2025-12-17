@@ -146,7 +146,7 @@ class Bomb:
 
 class PowerUp:
     def __init__(self, tiny_font):
-        self.types = ["freeze", "double_points", "frenzy"]
+        self.types = ["double_points", "frenzy"]
         self.type = random.choice(self.types)
         self.x = random.randint(50, WIDTH - 50)
         self.y = -40
@@ -166,8 +166,6 @@ class PowerUp:
             self.glow_direction *= -1
 
     def get_color(self):
-        if self.type == "freeze":
-            return CYAN
         if self.type == "double_points":
             return GOLD
         return PURPLE
@@ -186,7 +184,7 @@ class PowerUp:
             points.append((px, py))
         pygame.draw.polygon(surface, self.get_color(), points)
 
-        icon = "F" if self.type == "freeze" else ("x2" if self.type == "double_points" else "Z")
+        icon = "x2" if self.type == "double_points" else "Z"
         text = self.tiny_font.render(icon, True, WHITE)
         surface.blit(text, text.get_rect(center=(int(self.x), int(self.y))))
 
@@ -539,7 +537,7 @@ class GameScreen:
         self.game_time_ms = 0
         self.paused = False
 
-        self.active_powerups = {"freeze": 0, "double_points": 0, "frenzy": 0}
+        self.active_powerups = {"double_points": 0, "frenzy": 0}
         self.stats = {"fruits_sliced": 0, "bombs_hit": 0, "critical_hits": 0, "powerups_collected": 0}
 
     def handle_event(self, event):
@@ -587,10 +585,10 @@ class GameScreen:
         if self.active_powerups["frenzy"] > 0:
             spawn_rate = max(10, spawn_rate // 2)
 
-        if self.active_powerups["freeze"] == 0:
-            self.spawn_timer += 1
-            self.bomb_spawn_timer += 1
-            self.powerup_spawn_timer += 1
+       
+        self.spawn_timer += 1
+        self.bomb_spawn_timer += 1
+        self.powerup_spawn_timer += 1
 
         # fruits
         if self.spawn_timer > spawn_rate:
@@ -626,8 +624,8 @@ class GameScreen:
 
         # fruits
         for fruit in self.fruits[:]:
-            if self.active_powerups["freeze"] == 0:
-                fruit.update()
+            
+            fruit.update()
 
             if not fruit.sliced and fruit.get_rect().colliderect(slash_area):
                 fruit.sliced = True
@@ -660,8 +658,8 @@ class GameScreen:
 
         # bombs
         for bomb in self.bombs[:]:
-            if self.active_powerups["freeze"] == 0:
-                bomb.update()
+            
+            bomb.update()
 
             if not bomb.sliced and bomb.get_rect().colliderect(slash_area):
                 bomb.sliced = True
@@ -688,8 +686,8 @@ class GameScreen:
 
         # powerups
         for p in self.powerups[:]:
-            if self.active_powerups["freeze"] == 0:
-                p.update()
+            
+            p.update()
 
             if not p.sliced and p.get_rect().colliderect(slash_area):
                 p.sliced = True
@@ -755,9 +753,8 @@ class GameScreen:
         surface.blit(bomb_text, (self.width - 220, 20))
 
         y0 = 90
-        if self.active_powerups["freeze"] > 0:
-            surface.blit(self.small_font.render("Freeze", True, CYAN), (20, y0))
-            y0 += 22
+        
+
         if self.active_powerups["double_points"] > 0:
             surface.blit(self.small_font.render("x2 Points", True, GOLD), (20, y0))
             y0 += 22
