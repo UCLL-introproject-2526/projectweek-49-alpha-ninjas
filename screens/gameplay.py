@@ -429,6 +429,7 @@ class FloatingText:
 
 
 # ------------------ SOUND MANAGER (simple) ------------------
+
 class SoundBank:
     def __init__(self):
         self.ok = False
@@ -437,8 +438,10 @@ class SoundBank:
         self.over = None
         self.bg_loaded = False
 
-        # ✅ keep channel reference
+        # ✅ keep channel references
         self._start_channel = None
+        self._over_channel = None
+        self._intro_channel = None
 
         try:
             if pygame.mixer.get_init():
@@ -458,6 +461,9 @@ class SoundBank:
 
     def play_start(self):
         if self.ok and self.start:
+            # ✅ stop intro and gameover first if they're still playing
+            self.stop_intro()
+            self.stop_game_over()
             # ✅ play once (no loops), keep channel so we can stop it
             self._start_channel = self.start.play(loops=0)
 
@@ -467,9 +473,27 @@ class SoundBank:
             self._start_channel.stop()
             self._start_channel = None
 
+    def play_intro(self):
+        if self.ok and self.start:
+            # ✅ keep channel reference so we can stop it later
+            self._intro_channel = self.start.play(loops=-1)
+
+    def stop_intro(self):
+        # ✅ stops the intro sound immediately (if still playing)
+        if self._intro_channel:
+            self._intro_channel.stop()
+            self._intro_channel = None
+
     def play_game_over(self):
         if self.ok and self.over:
-            self.over.play()
+            # ✅ keep channel reference so we can stop it later
+            self._over_channel = self.over.play()
+
+    def stop_game_over(self):
+        # ✅ stops the gameover sound immediately (if still playing)
+        if self._over_channel:
+            self._over_channel.stop()
+            self._over_channel = None
 
     def start_bg(self, volume=0.35):
         if not self.ok:
