@@ -387,6 +387,9 @@ class Ninja:
         pygame.draw.circle(surface, BLACK, (x + 6, y - 26), 2)
 
         pygame.draw.rect(surface, (40, 40, 50), (x - 18, y - 10, 36, 45))
+        # pygame.draw.rect(surface, (255, 0, 0), self.get_slash_area(), 2)
+
+
 
         arm_end_x, arm_end_y = x + 35, y - 15
         pygame.draw.line(surface, (40, 40, 50), (x + 18, y - 5), (arm_end_x, arm_end_y), 8)
@@ -405,9 +408,20 @@ class Ninja:
     def get_slash_area(self):
         angle_rad = math.radians(self.sword_angle)
         sword_reach = 80
+
         center_x = self.x + sword_reach * math.cos(angle_rad) / 2
         center_y = self.y - 40 + sword_reach * math.sin(angle_rad) / 2
-        return pygame.Rect(center_x - 60, center_y - 60, 120, 120)
+
+        width = 120
+        height = 15   # half the original height
+
+        return pygame.Rect(
+            center_x - width // 2,
+            center_y - height // 2,
+            width,
+            height
+        )
+
 
 
 class FloatingText:
@@ -521,6 +535,12 @@ class GameScreen:
         self.small_font = pygame.font.SysFont("arial", 20, bold=True)
         self.tiny_font = pygame.font.SysFont("arial", 16)
 
+        # hearts
+        heart_path = os.path.join(ASSET_DIR, "heart.png")
+        self.heart_image = pygame.image.load(heart_path).convert_alpha()
+        self.heart_image = pygame.transform.smoothscale(self.heart_image, (32, 32))
+
+
         self.sounds = SoundBank()
 
         self.best_score = 0
@@ -583,7 +603,7 @@ class GameScreen:
             self.sounds.stop_start()
             self._start_sound_cut_done = True
 
-        # ✅ Game over only by bombs
+        #  Game over only by bombs
         if self.bomb_hits >= self.max_bomb_hits:
             self.best_score = max(self.best_score, self.score)
 
@@ -765,6 +785,15 @@ class GameScreen:
         score_text = self.font.render(f"Score: {self.score}", True, WHITE)
         surface.blit(score_text, (20, 20))
 
+        # ------------------ DRAW HEARTS (LIVES) ------------------
+        hearts_left = self.max_bomb_hits - self.bomb_hits
+
+        for i in range(hearts_left):
+            x = self.width - 40 - i * 36
+            y = 20
+            surface.blit(self.heart_image, (x, y))
+
+
         if self.combo > 1:
             combo_color = GOLD if self.combo >= 10 else (YELLOW if self.combo >= 5 else WHITE)
             combo_text = self.font.render(f"x{self.combo} COMBO!", True, combo_color)
@@ -773,8 +802,8 @@ class GameScreen:
         level_text = self.small_font.render(f"Level: {self.difficulty.level}", True, WHITE)
         surface.blit(level_text, (20, 60))
 
-        bomb_text = self.small_font.render(f"Bomb hits: {self.bomb_hits}/{self.max_bomb_hits}", True, (255, 200, 200))
-        surface.blit(bomb_text, (self.width - 220, 20))
+        # bomb_text = self.small_font.render(f"Bomb hits: {self.bomb_hits}/{self.max_bomb_hits}", True, (255, 200, 200))
+        # surface.blit(bomb_text, (self.width - 220, 20))
 
         y0 = 90
         

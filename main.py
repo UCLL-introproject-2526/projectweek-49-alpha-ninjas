@@ -7,6 +7,8 @@ from screens.gameplay import GameScreen
 from screens.game_over import GameOverScreen
 
 
+FULLSCREEN = False
+
 def main():
     pygame.init()
     try:
@@ -15,6 +17,8 @@ def main():
         pass
 
     surface = pygame.display.set_mode((WIDTH, HEIGHT))
+    if FULLSCREEN:
+        surface = pygame.display.set_mode((WIDTH, HEIGHT), pygame.FULLSCREEN)
     pygame.display.set_caption("Alpha Ninja")
     clock = pygame.time.Clock()
 
@@ -38,6 +42,9 @@ def main():
             a = current.handle_event(event)
             if a is not None:
                 action = a
+            # To toggle fullscreen mode
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_f:
+                pygame.display.toggle_fullscreen()
 
         # 2) update (if no action yet)
         if action is None:
