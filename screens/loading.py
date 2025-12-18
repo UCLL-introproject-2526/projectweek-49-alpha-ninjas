@@ -18,6 +18,16 @@ class LoadingScreen:
         self.font = pygame.font.SysFont("arial", 48, bold=True)
         self.start_ms = 0
 
+#   moving ninja animation  # LOAD BACKGROUND ONCE
+        self.movingNinja = pygame.image.load(
+            "assets/images/Ninja.png"
+        ).convert_alpha()
+        self.movingNinja = pygame.transform.smoothscale(
+             self.movingNinja, (self.width/2, self.height/2)
+        )
+
+        self.movingNinjaX = -200
+
 
         
         # LOAD BACKGROUND ONCE
@@ -40,6 +50,8 @@ class LoadingScreen:
         return None
 
     def update(self, dt):
+        if self.movingNinjaX < WIDTH-300:
+             self.movingNinjaX += 300 * dt  # Move right at 300 pixels per second
         if self.angle < 0:
             self.angle += 240 * dt  # 4 per frame at 60fps ≈ 240 per second
         else:
@@ -52,6 +64,8 @@ class LoadingScreen:
 
     def draw(self, surface):
         surface.blit(self.background, (0, 0))
+        surface.blit(self.movingNinja, (self.movingNinjaX, HEIGHT/2.2))
+
 
 
 

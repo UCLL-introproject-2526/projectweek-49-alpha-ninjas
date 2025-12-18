@@ -64,7 +64,6 @@ def main():
             gameover.enter(final_score, best_score)
             current = gameover
 
-        # 4) draw
         current.draw(surface)
         pygame.display.flip()
 
