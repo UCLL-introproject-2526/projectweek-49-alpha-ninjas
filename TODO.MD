@@ -10,3 +10,9 @@
 * Group poster
 
 * Publishing information (Koski)
+
+* Gameplay background - Choose your background
+
+* Modify main menu ress P to pause
+
+* Hold space to increase speed
