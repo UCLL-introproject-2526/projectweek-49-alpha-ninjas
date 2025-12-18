@@ -23,7 +23,7 @@ class LoadingScreen:
             "assets/images/Ninja.png"
         ).convert_alpha()
         self.movingNinja = pygame.transform.smoothscale(
-             self.movingNinja, (self.width/2, self.height/2)
+             self.movingNinja, (self.width, self.height)
         )
 
         self.movingNinjaX = -200
@@ -58,13 +58,13 @@ class LoadingScreen:
             self.show_title = True
 
         # End loading after 2.5 seconds
-        if pygame.time.get_ticks() - self.start_ms > 2500:
+        if pygame.time.get_ticks() - self.start_ms > 3500:
             return "menu"
         return None
 
     def draw(self, surface):
         surface.blit(self.background, (0, 0))
-        surface.blit(self.movingNinja, (self.movingNinjaX, HEIGHT/2.2))
+        surface.blit(self.movingNinja, (self.movingNinjaX, HEIGHT-self.movingNinja.get_height()+50))
 
 
 
